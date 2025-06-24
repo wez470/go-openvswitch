@@ -160,11 +160,12 @@ func TestFlowMarshalText(t *testing.T) {
 				Table:       0,
 				IdleTimeout: 0,
 				Actions: []Action{
+					DecTTL(),
 					ModVLANVID(20),
 					Resubmit(0, 1),
 				},
 			},
-			s: "priority=2020,ip,in_port=31,dl_src=00:11:22:33:44:55,nw_src=10.0.0.1,table=0,idle_timeout=0,actions=mod_vlan_vid:20,resubmit(,1)",
+			s: "priority=2020,ip,in_port=31,dl_src=00:11:22:33:44:55,nw_src=10.0.0.1,table=0,idle_timeout=0,actions=dec_ttl,mod_vlan_vid:20,resubmit(,1)",
 		},
 		{
 			desc: "IPv6 Flow",
@@ -179,10 +180,11 @@ func TestFlowMarshalText(t *testing.T) {
 				IdleTimeout: 0,
 				Actions: []Action{
 					StripVLAN(),
+					DecTTL(),
 					Output(69),
 				},
 			},
-			s: "priority=1020,ipv6,dl_dst=01:02:03:04:05:06,ipv6_dst=fe80::abcd:1,table=1,idle_timeout=0,actions=strip_vlan,output:69",
+			s: "priority=1020,ipv6,dl_dst=01:02:03:04:05:06,ipv6_dst=fe80::abcd:1,table=1,idle_timeout=0,actions=strip_vlan,dec_ttl,output:69",
 		},
 		{
 			desc: "TCPv4 Flow",
@@ -657,7 +659,7 @@ func TestFlowUnmarshalText(t *testing.T) {
 		},
 		{
 			desc: "IPv4 Flow",
-			s:    "priority=2020,ip,in_port=31,dl_src=00:11:22:33:44:55,nw_src=10.0.0.1,table=0,idle_timeout=0,actions=mod_vlan_vid:20,resubmit(,1)",
+			s:    "priority=2020,ip,in_port=31,dl_src=00:11:22:33:44:55,nw_src=10.0.0.1,table=0,idle_timeout=0,actions=dec_ttl,mod_vlan_vid:20,resubmit(,1)",
 			f: &Flow{
 				Priority: 2020,
 				Protocol: ProtocolIPv4,
@@ -669,6 +671,7 @@ func TestFlowUnmarshalText(t *testing.T) {
 				Table:       0,
 				IdleTimeout: 0,
 				Actions: []Action{
+					DecTTL(),
 					ModVLANVID(20),
 					Resubmit(0, 1),
 				},
@@ -676,7 +679,7 @@ func TestFlowUnmarshalText(t *testing.T) {
 		},
 		{
 			desc: "IPv6 Flow",
-			s:    "priority=1020,ipv6,dl_dst=01:02:03:04:05:06,ipv6_dst=fe80::abcd:1,table=1,idle_timeout=0,actions=strip_vlan,output:69",
+			s:    "priority=1020,ipv6,dl_dst=01:02:03:04:05:06,ipv6_dst=fe80::abcd:1,table=1,idle_timeout=0,actions=strip_vlan,dec_ttl,output:69",
 			f: &Flow{
 				Priority: 1020,
 				Protocol: ProtocolIPv6,
@@ -688,6 +691,7 @@ func TestFlowUnmarshalText(t *testing.T) {
 				IdleTimeout: 0,
 				Actions: []Action{
 					StripVLAN(),
+					DecTTL(),
 					Output(69),
 				},
 			},
@@ -1080,6 +1084,7 @@ func TestFlowMatchFlow(t *testing.T) {
 				IdleTimeout: 0,
 				Actions: []Action{
 					StripVLAN(),
+					DecTTL(),
 					Output(69),
 				},
 			},
