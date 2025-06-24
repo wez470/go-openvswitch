@@ -187,6 +187,8 @@ func parseAction(s string) (Action, error) {
 		return Normal(), nil
 	case actionStripVLAN:
 		return StripVLAN(), nil
+	case actionDecTTL:
+		return DecTTL(), nil
 	}
 
 	// ActionCT, with its arguments

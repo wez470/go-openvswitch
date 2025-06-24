@@ -134,6 +134,10 @@ func Test_parseAction(t *testing.T) {
 			a: StripVLAN(),
 		},
 		{
+			s: "dec_ttl",
+			a: DecTTL(),
+		},
+		{
 			s:       "ct()",
 			invalid: true,
 		},
