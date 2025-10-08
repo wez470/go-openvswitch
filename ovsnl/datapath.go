@@ -15,8 +15,8 @@
 package ovsnl
 
 import (
+	"encoding/binary"
 	"fmt"
-	"unsafe"
 
 	"github.com/digitalocean/go-openvswitch/ovsnl/internal/ovsh"
 	"github.com/mdlayher/genetlink"
@@ -98,15 +98,20 @@ type DatapathMegaflowStats struct {
 
 // List lists all Datapaths in the kernel.
 func (s *DatapathService) List() ([]Datapath, error) {
+	data, err := ovsh.MarshalBinary(&ovsh.Header{
+		// Query all datapaths.
+		Ifindex: 0,
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	req := genetlink.Message{
 		Header: genetlink.Header{
 			Command: ovsh.DpCmdGet,
 			Version: uint8(s.f.Version),
 		},
-		// Query all datapaths.
-		Data: headerBytes(ovsh.Header{
-			Ifindex: 0,
-		}),
+		Data: data,
 	}
 
 	flags := netlink.Request | netlink.Dump
@@ -165,15 +170,26 @@ func parseDatapaths(msgs []genetlink.Message) ([]Datapath, error) {
 	return dps, nil
 }
 
+// Sizes of various structures, used for safety checks during unmarshaling.
+var (
+	sizeofHeader          = binary.Size(ovsh.Header{})
+	sizeofDPStats         = binary.Size((ovsh.DPStats{}))
+	sizeofDPMegaflowStats = binary.Size((ovsh.DPMegaflowStats{}))
+)
+
 // parseDPStats converts a byte slice into DatapathStats.
 func parseDPStats(b []byte) (DatapathStats, error) {
-	// Verify that the byte slice is the correct length before doing
-	// unsafe casts.
+	// Verify that the byte slice is the correct length before unmarshaling.
 	if want, got := sizeofDPStats, len(b); want != got {
 		return DatapathStats{}, fmt.Errorf("unexpected datapath stats structure size, want %d, got %d", want, got)
 	}
 
-	s := *(*ovsh.DPStats)(unsafe.Pointer(&b[0])) // #nosec G103
+	s := new(ovsh.DPStats)
+	err := ovsh.UnmarshalBinary(b, s)
+	if err != nil {
+		return DatapathStats{}, err
+	}
+
 	return DatapathStats{
 		Hit:    s.Hit,
 		Missed: s.Missed,
@@ -184,16 +200,34 @@ func parseDPStats(b []byte) (DatapathStats, error) {
 
 // parseDPMegaflowStats converts a byte slice into DatapathMegaflowStats.
 func parseDPMegaflowStats(b []byte) (DatapathMegaflowStats, error) {
-	// Verify that the byte slice is the correct length before doing
-	// unsafe casts.
+	// Verify that the byte slice is the correct length before unmarshaling.
 	if want, got := sizeofDPMegaflowStats, len(b); want != got {
 		return DatapathMegaflowStats{}, fmt.Errorf("unexpected datapath megaflow stats structure size, want %d, got %d", want, got)
 	}
 
-	s := *(*ovsh.DPMegaflowStats)(unsafe.Pointer(&b[0])) // #nosec G103
+	s := new(ovsh.DPMegaflowStats)
+	err := ovsh.UnmarshalBinary(b, s)
+	if err != nil {
+		return DatapathMegaflowStats{}, err
+	}
 
 	return DatapathMegaflowStats{
 		MaskHits: s.Mask_hit,
 		Masks:    s.Masks,
 	}, nil
+}
+
+// parseHeader converts a byte slice into ovsh.Header.
+func parseHeader(b []byte) (ovsh.Header, error) {
+	// Verify we have enough data for what we are expecting before unmarshaling.
+	if l := len(b); l < sizeofHeader {
+		return ovsh.Header{}, fmt.Errorf("not enough data for OVS message header: %d bytes", l)
+	}
+
+	h := new(ovsh.Header)
+	err := ovsh.UnmarshalBinary(b, h)
+	if err != nil {
+		return ovsh.Header{}, err
+	}
+	return *h, nil
 }
