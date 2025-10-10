@@ -18,18 +18,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"unsafe"
 
 	"github.com/digitalocean/go-openvswitch/ovsnl/internal/ovsh"
 	"github.com/mdlayher/genetlink"
-)
-
-// Sizes of various structures, used in unsafe casts.
-const (
-	sizeofHeader = int(unsafe.Sizeof(ovsh.Header{}))
-
-	sizeofDPStats         = int(unsafe.Sizeof(ovsh.DPStats{}))
-	sizeofDPMegaflowStats = int(unsafe.Sizeof(ovsh.DPMegaflowStats{}))
 )
 
 // A Client is a Linux Open vSwitch generic netlink client.
@@ -115,21 +106,4 @@ func (c *Client) initFamily(f genetlink.Family) error {
 		// Unknown OVS netlink family, nothing we can do.
 		return fmt.Errorf("unknown OVS generic netlink family: %q", f.Name)
 	}
-}
-
-// headerBytes converts an ovsh.Header into a byte slice.
-func headerBytes(h ovsh.Header) []byte {
-	b := *(*[sizeofHeader]byte)(unsafe.Pointer(&h)) // #nosec G103
-	return b[:]
-}
-
-// parseHeader converts a byte slice into ovsh.Header.
-func parseHeader(b []byte) (ovsh.Header, error) {
-	// Verify that the byte slice is long enough before doing unsafe casts.
-	if l := len(b); l < sizeofHeader {
-		return ovsh.Header{}, fmt.Errorf("not enough data for OVS message header: %d bytes", l)
-	}
-
-	h := *(*ovsh.Header)(unsafe.Pointer(&b[:sizeofHeader][0])) // #nosec G103
-	return h, nil
 }
