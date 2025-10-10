@@ -16,7 +16,6 @@ package ovsnl
 
 import (
 	"encoding/binary"
-	"fmt"
 
 	"github.com/digitalocean/go-openvswitch/ovsnl/internal/ovsh"
 	"github.com/mdlayher/genetlink"
@@ -139,8 +138,9 @@ func parseDatapaths(msgs []genetlink.Message) ([]Datapath, error) {
 			Index: int(h.Ifindex),
 		}
 
-		// Skip the header to parse attributes.
-		attrs, err := netlink.UnmarshalAttributes(m.Data[sizeofHeader:])
+		// Skip past the header to parse attributes.
+		hdrSize := binary.Size(h)
+		attrs, err := netlink.UnmarshalAttributes(m.Data[hdrSize:])
 		if err != nil {
 			return nil, err
 		}
@@ -170,20 +170,8 @@ func parseDatapaths(msgs []genetlink.Message) ([]Datapath, error) {
 	return dps, nil
 }
 
-// Sizes of various structures, used for safety checks during unmarshaling.
-var (
-	sizeofHeader          = binary.Size(ovsh.Header{})
-	sizeofDPStats         = binary.Size((ovsh.DPStats{}))
-	sizeofDPMegaflowStats = binary.Size((ovsh.DPMegaflowStats{}))
-)
-
 // parseDPStats converts a byte slice into DatapathStats.
 func parseDPStats(b []byte) (DatapathStats, error) {
-	// Verify that the byte slice is the correct length before unmarshaling.
-	if want, got := sizeofDPStats, len(b); want != got {
-		return DatapathStats{}, fmt.Errorf("unexpected datapath stats structure size, want %d, got %d", want, got)
-	}
-
 	s := new(ovsh.DPStats)
 	err := ovsh.UnmarshalBinary(b, s)
 	if err != nil {
@@ -200,11 +188,6 @@ func parseDPStats(b []byte) (DatapathStats, error) {
 
 // parseDPMegaflowStats converts a byte slice into DatapathMegaflowStats.
 func parseDPMegaflowStats(b []byte) (DatapathMegaflowStats, error) {
-	// Verify that the byte slice is the correct length before unmarshaling.
-	if want, got := sizeofDPMegaflowStats, len(b); want != got {
-		return DatapathMegaflowStats{}, fmt.Errorf("unexpected datapath megaflow stats structure size, want %d, got %d", want, got)
-	}
-
 	s := new(ovsh.DPMegaflowStats)
 	err := ovsh.UnmarshalBinary(b, s)
 	if err != nil {
@@ -219,11 +202,6 @@ func parseDPMegaflowStats(b []byte) (DatapathMegaflowStats, error) {
 
 // parseHeader converts a byte slice into ovsh.Header.
 func parseHeader(b []byte) (ovsh.Header, error) {
-	// Verify we have enough data for what we are expecting before unmarshaling.
-	if l := len(b); l < sizeofHeader {
-		return ovsh.Header{}, fmt.Errorf("not enough data for OVS message header: %d bytes", l)
-	}
-
 	h := new(ovsh.Header)
 	err := ovsh.UnmarshalBinary(b, h)
 	if err != nil {

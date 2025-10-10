@@ -17,6 +17,7 @@ package ovsh
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 )
 
 // ovsTypes defines a type set of the types defined in struct.go
@@ -33,6 +34,11 @@ func MarshalBinary[T ovsTypes](data *T) ([]byte, error) {
 
 // UnmarshalBinary is a generic binary unmarshaling function for the type defined in struct.go
 func UnmarshalBinary[T ovsTypes](data []byte, dst *T) error {
+	// Verify that the byte slice has enough data before unmarshaling.
+	if want, got := binary.Size(*dst), len(data); got < want {
+		return fmt.Errorf("unexpected size of struct %T, want at least %d, got %d", *dst, want, got)
+	}
+
 	*dst = *new(T) // reset the contents, just to be safe
 	buf := bytes.NewBuffer(data)
 	return binary.Read(buf, binary.NativeEndian, dst)
