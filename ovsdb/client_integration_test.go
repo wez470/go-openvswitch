@@ -17,6 +17,7 @@ package ovsdb_test
 import (
 	"context"
 	"fmt"
+	"sort"
 	"sync"
 	"testing"
 	"time"
@@ -88,6 +89,7 @@ func testClientDatabases(ctx context.Context, t *testing.T, c *ovsdb.Client) {
 	}
 
 	want := []string{"Open_vSwitch", "_Server"}
+	sort.Strings(dbs)
 
 	if diff := cmp.Diff(want, dbs); diff != "" {
 		t.Fatalf("unexpected databases (-want +got):\n%s", diff)

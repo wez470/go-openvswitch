@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//+build linux
+//go:build linux
+// +build linux
 
 package ovsnl
 
 import (
 	"testing"
-	"unsafe"
 
 	"github.com/digitalocean/go-openvswitch/ovsnl/internal/ovsh"
 	"github.com/google/go-cmp/cmp"
@@ -136,7 +136,8 @@ func TestClientDatapathListOK(t *testing.T) {
 			t.Fatalf("unexpected generic netlink command (-want +got):\n%s", diff)
 		}
 
-		h, err := parseHeader(greq.Data)
+		h := new(ovsh.Header)
+		err := ovsh.UnmarshalBinary(greq.Data, h)
 		if err != nil {
 			t.Fatalf("failed to parse OvS generic netlink header: %v", err)
 		}
@@ -147,7 +148,7 @@ func TestClientDatapathListOK(t *testing.T) {
 
 		return []genetlink.Message{
 			{
-				Data: mustMarshalDatapath(system),
+				Data: mustMarshalDatapath(t, system),
 			},
 		}, nil
 	}))
@@ -172,21 +173,23 @@ func TestClientDatapathListOK(t *testing.T) {
 	}
 }
 
-func mustMarshalDatapath(dp Datapath) []byte {
-	h := ovsh.Header{
+func mustMarshalDatapath(t *testing.T, dp Datapath) []byte {
+	hb, err := ovsh.MarshalBinary(&ovsh.Header{
 		Ifindex: int32(dp.Index),
+	})
+	if err != nil {
+		t.Fatal(t)
 	}
 
-	hb := headerBytes(h)
-
-	s := ovsh.DPStats{
+	sb, err := ovsh.MarshalBinary(&ovsh.DPStats{
 		Hit:    dp.Stats.Hit,
 		Missed: dp.Stats.Missed,
 		Lost:   dp.Stats.Lost,
 		Flows:  dp.Stats.Flows,
+	})
+	if err != nil {
+		t.Fatal(t)
 	}
-
-	sb := *(*[sizeofDPStats]byte)(unsafe.Pointer(&s))
 
 	ms := ovsh.DPMegaflowStats{
 		Mask_hit: dp.MegaflowStats.MaskHits,
@@ -194,7 +197,10 @@ func mustMarshalDatapath(dp Datapath) []byte {
 		// Pad already set to zero.
 	}
 
-	msb := *(*[sizeofDPMegaflowStats]byte)(unsafe.Pointer(&ms))
+	msb, err := ovsh.MarshalBinary(&ms)
+	if err != nil {
+		t.Fatal(t)
+	}
 
 	ab := mustMarshalAttributes([]netlink.Attribute{
 		{
@@ -207,7 +213,7 @@ func mustMarshalDatapath(dp Datapath) []byte {
 		},
 		{
 			Type: ovsh.DpAttrStats,
-			Data: sb[:],
+			Data: sb,
 		},
 		{
 			Type: ovsh.DpAttrMegaflowStats,
